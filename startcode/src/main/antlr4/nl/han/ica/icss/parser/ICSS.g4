@@ -41,9 +41,27 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-
-
-
 //--- PARSER: ---
-stylesheet: EOF;
+stylesheet : (stylerule | variableAssignment)* EOF;
 
+color_literal : COLOR_LITERAL ;
+pixel_literal : PIXEL_LITERAL ;
+percentage_literal : PERCENTAGE_LITERAL ;
+
+tag_selector : TAG_ID ;
+id_selector : ID_REF ;
+class_selector : CLASS_REF ;
+
+selector : TAG_ID | ID_REF | CLASS_REF;
+
+stylerule : selector '{' body '}';
+
+variableAssignment  : VAR_ID ASSIGN expression SEMI_COLON;
+
+body : declaration*;
+
+declaration : prop=propertyName COLON expression SEMI_COLON;
+
+propertyName : 'width' | 'height' | 'color' | 'background-color';
+
+expression : color_literal | pixel_literal | percentage_literal;
