@@ -110,7 +110,7 @@
 						<id>simple-command</id>
 						<phase>package</phase>
 						<goals>
-							<goal>single</goal>
+							<goal>attached</goal>
 						</goals>
 					</execution>
 				</executions>
