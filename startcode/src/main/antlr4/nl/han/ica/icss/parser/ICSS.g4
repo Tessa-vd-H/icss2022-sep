@@ -2,6 +2,9 @@ grammar ICSS;
 
 //--- LEXER: ---
 
+COLOR_PROPERTIES: 'color' | 'background-color';
+WIDTH_HEIGHT_PROPERTIES: 'width' | 'height';
+
 // IF support:
 IF: 'if';
 ELSE: 'else';
@@ -43,11 +46,12 @@ ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
 // stylesheet bestaat uit 1 of meerdere styleblocks
-stylesheet:  styleBlock+ EOF;
+stylesheet: styleBlock+ EOF;
 
 // een styleblock kan een regel of variabele-toekenning zijn
 styleBlock: styleRule | varAssign;
 
+// === Style rules ===
 // een stylerule bevat een selector en 1 of meer regels binnen accolades
 styleRule: selector OPEN_BRACE ruleType* CLOSE_BRACE;
 
@@ -57,14 +61,13 @@ ruleType: ifStmt | declaration | varAssign;
 // selectors: id, class of gewone tag
 selector: ID_IDENT | CLASS_IDENT | LOWER_IDENT;
 
+// === Declaraties ===
 // declaratie: een property gevolgd door een waarde
-declaration: property COLON value SEMICOLON;
+declaration: COLOR_PROPERTIES COLON propColorValue SEMICOLON | WIDTH_HEIGHT_PROPERTIES COLON propValue SEMICOLON;
 
-// geldige properties: color, background-color, width, height
-property: LOWER_IDENT;
+propColorValue: var | COLOR;
 
-// values: een kleur, afmeting, percentage of variabele
-value: COLOR | PIXELSIZE | PERCENTAGE | var;
+propValue: var | PIXELSIZE | PERCENTAGE | calc;
 
 // === Variabelen ===
 // Variabelen kunnen verschillende waarden bevatten:
@@ -74,16 +77,23 @@ value: COLOR | PIXELSIZE | PERCENTAGE | var;
 
 varAssign: var ASSIGNMENT_OPERATOR varValue SEMICOLON;
 var: CAPITAL_IDENT;
-varValue: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;
+varValue: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE | calc;
 
 // === If/Else statements ===
 // Conditionele blokken kunnen alleen booleans of boolVars gebruiken
-ifStmt: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE block CLOSE_BRACE (elseStmt)?;
+ifStmt: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE body CLOSE_BRACE (elseStmt)?;
 
-elseStmt: ELSE OPEN_BRACE block CLOSE_BRACE;
+elseStmt: ELSE OPEN_BRACE body CLOSE_BRACE;
 
 // expressies mogen een bool of variabele met een bool-waarde zijn
 expression: var | TRUE | FALSE;
 
 // body van if- en else-blokken
-block: ruleType*;
+body: ruleType*; // een body mag leeg zijn
+
+// === Berekeningen ===
+calc: calcPixel | calcPercent;
+
+calcPixel: calcPixel MUL SCALAR | SCALAR MUL calcPixel | calcPixel (PLUS | MIN) calcPixel | PIXELSIZE | var;
+
+calcPercent: calcPercent MUL SCALAR | SCALAR MUL calcPercent | calcPercent (PLUS | MIN) calcPercent | PERCENTAGE | var;
