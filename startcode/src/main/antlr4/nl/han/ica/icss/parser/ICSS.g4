@@ -41,9 +41,49 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-
-
-
 //--- PARSER: ---
-stylesheet: EOF;
+// stylesheet bestaat uit 1 of meerdere styleblocks
+stylesheet:  styleBlock+ EOF;
 
+// een styleblock kan een regel of variabele-toekenning zijn
+styleBlock: styleRule | varAssign;
+
+// een stylerule bevat een selector en 1 of meer regels binnen accolades
+styleRule: selector OPEN_BRACE ruleType* CLOSE_BRACE;
+
+// een ruletype kan een declaratie, variabele, of if-statement zijn
+ruleType: ifStmt | declaration | varAssign;
+
+// selectors: id, class of gewone tag
+selector: ID_IDENT | CLASS_IDENT | LOWER_IDENT;
+
+// declaratie: een property gevolgd door een waarde
+declaration: property COLON value SEMICOLON;
+
+// geldige properties: color, background-color, width, height
+property: LOWER_IDENT;
+
+// values: een kleur, afmeting, percentage of variabele
+value: COLOR | PIXELSIZE | PERCENTAGE | var;
+
+// === Variabelen ===
+// Variabelen kunnen verschillende waarden bevatten:
+// - valueVar: COLOR | PIXELSIZE | PERCENTAGE
+// - normalVar: COLOR | PIXELSIZE | PERCENTAGE | SCALAR
+// - boolVar: TRUE | FALSE
+
+varAssign: var ASSIGNMENT_OPERATOR varValue SEMICOLON;
+var: CAPITAL_IDENT;
+varValue: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;
+
+// === If/Else statements ===
+// Conditionele blokken kunnen alleen booleans of boolVars gebruiken
+ifStmt: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE block CLOSE_BRACE (elseStmt)?;
+
+elseStmt: ELSE OPEN_BRACE block CLOSE_BRACE;
+
+// expressies mogen een bool of variabele met een bool-waarde zijn
+expression: var | TRUE | FALSE;
+
+// body van if- en else-blokken
+block: ruleType*;
