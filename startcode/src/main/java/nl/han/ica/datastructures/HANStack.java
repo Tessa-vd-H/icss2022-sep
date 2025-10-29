@@ -1,32 +1,26 @@
 package nl.han.ica.datastructures;
 
+import java.util.LinkedList;
+import java.util.EmptyStackException;
+
 public class HANStack<T> implements IHANStack<T> {
+    private LinkedList<T> list = new LinkedList<>();
 
-    private final HANLinkedList<T> list = new HANLinkedList<>();
-
-    @Override
     public void push(T value) {
-        list.insert(list.getSize(), value);
+        list.add(value);
     }
 
-    @Override
     public T pop() {
-        if (list.getSize() == 0) {
-            return null;
+        if (list.size() == 0) {
+            throw new EmptyStackException();
         }
-
-        int lastIndex = list.getSize() - 1;
-        T value = list.get(lastIndex);
-        list.delete(lastIndex);
-        return value;
+        return list.remove(list.size() - 1);
     }
 
-    @Override
     public T peek() {
-        if (list.getSize() == 0) {
-            return null;
+        if (list.size() == 0) {
+            throw new EmptyStackException();
         }
-
-        return list.get(list.getSize() - 1);
+        return list.get(list.size() - 1);
     }
 }
