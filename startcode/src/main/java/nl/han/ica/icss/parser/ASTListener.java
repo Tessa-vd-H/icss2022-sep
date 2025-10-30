@@ -11,7 +11,6 @@ public class ASTListener extends ICSSBaseListener {
 
 	private AST ast;
 	private IHANStack<ASTNode> currentContainer;
-	private int nestedCalcs = 0;
 
 	public ASTListener() {
 		ast = new AST();
@@ -77,10 +76,8 @@ public class ASTListener extends ICSSBaseListener {
 			declaration = new Declaration(ctx.WIDTH_HEIGHT_PROPERTIES().getText());
 		}
 
-		if (declaration != null) {
-			currentContainer.peek().addChild(declaration);
-			currentContainer.push(declaration);
-		}
+		currentContainer.peek().addChild(declaration);
+		currentContainer.push(declaration);
 	}
 
 	@Override
@@ -110,18 +107,21 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void enterPropValue(ICSSParser.PropValueContext ctx) {
-		ASTNode node = null;
 		if (ctx.PIXELSIZE() != null) {
-			node = new PixelLiteral(ctx.getText());
+			Literal literal = new PixelLiteral(ctx.getText());
+			currentContainer.peek().addChild(literal);
+			currentContainer.push(literal);
 		} else if (ctx.PERCENTAGE() != null) {
-			node = new PercentageLiteral(ctx.getText());
+			Literal literal = new PercentageLiteral(ctx.getText());
+			currentContainer.peek().addChild(literal);
+			currentContainer.push(literal);
 		} else if (ctx.CAPITAL_IDENT() != null) {
-			node = new VariableReference(ctx.getText());
-		}
-
-		if (node != null) {
-			currentContainer.peek().addChild(node);
-			currentContainer.push(node);
+			VariableReference vr = new VariableReference(ctx.getText());
+			currentContainer.peek().addChild(vr);
+			currentContainer.push(vr);
+		} else if (ctx.calc() != null) {
+			currentContainer.peek().addChild(currentContainer.peek());
+			currentContainer.push(currentContainer.peek());
 		}
 	}
 
@@ -135,25 +135,6 @@ public class ASTListener extends ICSSBaseListener {
 		VariableAssignment variableAssignment = new VariableAssignment();
 		variableAssignment.name = new VariableReference(ctx.CAPITAL_IDENT().getText());
 
-		ICSSParser.VarValueContext valueCtx = ctx.varValue();
-		if (valueCtx != null) {
-			if (valueCtx.PIXELSIZE() != null) {
-				variableAssignment.expression = new PixelLiteral(valueCtx.PIXELSIZE().getText());
-			} else if (valueCtx.PERCENTAGE() != null) {
-				variableAssignment.expression = new PercentageLiteral(valueCtx.PERCENTAGE().getText());
-			} else if (valueCtx.COLOR() != null) {
-				variableAssignment.expression = new ColorLiteral(valueCtx.COLOR().getText());
-			} else if (valueCtx.CAPITAL_IDENT() != null) {
-				variableAssignment.expression = new VariableReference(valueCtx.CAPITAL_IDENT().getText());
-			} else if (valueCtx.TRUE() != null) {
-				variableAssignment.expression = new BoolLiteral(valueCtx.TRUE().getText());
-			} else if (valueCtx.FALSE() != null) {
-				variableAssignment.expression = new BoolLiteral(valueCtx.FALSE().getText());
-			} else if (valueCtx.SCALAR() != null) {
-				variableAssignment.expression = new ScalarLiteral(valueCtx.SCALAR().getText());
-			}
-		}
-
 		currentContainer.peek().addChild(variableAssignment);
 		currentContainer.push(variableAssignment);
 	}
@@ -165,9 +146,30 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void enterVarValue(ICSSParser.VarValueContext ctx) {
-		VariableReference variableReference = new VariableReference(ctx.getText());
-		currentContainer.peek().addChild(variableReference);
-		currentContainer.push(variableReference);
+		ASTNode node = null;
+
+		if (ctx.PIXELSIZE() != null) {
+			node = new PixelLiteral(ctx.PIXELSIZE().getText());
+		} else if (ctx.PERCENTAGE() != null) {
+			node = new PercentageLiteral(ctx.PERCENTAGE().getText());
+		} else if (ctx.COLOR() != null) {
+			node = new ColorLiteral(ctx.COLOR().getText());
+		} else if (ctx.CAPITAL_IDENT() != null) {
+			node = new VariableReference(ctx.CAPITAL_IDENT().getText());
+		} else if (ctx.TRUE() != null) {
+			node = new BoolLiteral(ctx.TRUE().getText());
+		} else if (ctx.FALSE() != null) {
+			node = new BoolLiteral(ctx.FALSE().getText());
+		} else if (ctx.SCALAR() != null) {
+			node = new ScalarLiteral(ctx.SCALAR().getText());
+		} else if (ctx.calc() != null) {
+			currentContainer.push(currentContainer.peek());
+		}
+
+		if (node != null) {
+			currentContainer.peek().addChild(node);
+			currentContainer.push(node);
+		}
 	}
 
 	@Override
@@ -222,46 +224,58 @@ public class ASTListener extends ICSSBaseListener {
 	}
 
 	@Override
-	public void enterScalar(ICSSParser.ScalarContext ctx) {
-		ScalarLiteral scalarLiteral = new ScalarLiteral(ctx.getText());
-		currentContainer.peek().addChild(scalarLiteral);
-	}
-
-	@Override
-	public void enterCalcPixel(ICSSParser.CalcPixelContext ctx) {
+	public void enterCalc(ICSSParser.CalcContext ctx) {
 		ASTNode exp = null;
 
-		if (ctx.getChildCount() == 1) { // Leaf node
-			if (ctx.PIXELSIZE() != null) {
-				exp = new PixelLiteral(ctx.getText());
-			} else if (ctx.CAPITAL_IDENT() != null) {
-				exp = new VariableReference(ctx.getText());
-			}
-
-			if (exp != null) {
-				currentContainer.peek().addChild(exp);
-			}
-		} else if (ctx.getChildCount() == 3) { // Binary operation
+		// Handle binary operation: e.g., 10px + 5px
+		if (ctx.getChildCount() == 3) {
 			char op = ctx.getChild(1).getText().charAt(0);
 			switch (op) {
-				case '*': exp = new MultiplyOperation(); break;
-				case '+': exp = new AddOperation(); break;
-				case '-': exp = new SubtractOperation(); break;
+				case '*':
+					exp = new MultiplyOperation();
+					break;
+				case '+':
+					exp = new AddOperation();
+					break;
+				default:
+					exp = new SubtractOperation();
+					break;
+			}
+			currentContainer.peek().addChild(exp);
+			currentContainer.push(exp);
+		}
+
+		// Handle leaf node: e.g., 10px or VAR
+		if (ctx.getChildCount() == 1) {
+			if (ctx.PIXELSIZE() != null) {
+				exp = new PixelLiteral(ctx.getChild(0).getText());
+			} else if (ctx.PERCENTAGE() != null) {
+				exp = new PercentageLiteral(ctx.getChild(0).getText());
+			} else if (ctx.CAPITAL_IDENT() != null) {
+				exp = new VariableReference(ctx.getChild(0).getText());
 			}
 
 			if (exp != null) {
 				currentContainer.peek().addChild(exp);
 				currentContainer.push(exp);
-				nestedCalcs++;
 			}
 		}
 	}
 
 	@Override
-	public void exitCalcPixel(ICSSParser.CalcPixelContext ctx) {
-		if (ctx.getChildCount() == 3 && nestedCalcs > 0) {
-			currentContainer.pop();
-			nestedCalcs--;
-		}
+	public void exitCalc(ICSSParser.CalcContext ctx) {
+		currentContainer.pop();
+	}
+
+	@Override
+	public void enterScalar(ICSSParser.ScalarContext ctx) {
+		ScalarLiteral scalarLiteral = new ScalarLiteral(ctx.getText());
+		currentContainer.peek().addChild(scalarLiteral);
+		currentContainer.push(scalarLiteral);
+	}
+
+	@Override
+	public void exitScalar(ICSSParser.ScalarContext ctx) {
+		currentContainer.pop();
 	}
 }

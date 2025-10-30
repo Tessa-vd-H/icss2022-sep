@@ -84,10 +84,6 @@ expression: CAPITAL_IDENT | TRUE | FALSE;
 
 // === Calculations ===
 // Calculations allow arithmetic with pixel or percentage values
-calc: calcPixel | calcPercent;
-
-calcPixel: calcPixel MUL scalar | scalar MUL calcPixel | calcPixel (PLUS | MIN) calcPixel | PIXELSIZE | CAPITAL_IDENT;
-
-calcPercent: calcPercent MUL scalar | scalar MUL calcPercent | calcPercent (PLUS | MIN) calcPercent | PERCENTAGE | CAPITAL_IDENT;
+calc: calc MUL scalar | scalar MUL calc | calc (PLUS | MIN) calc | CAPITAL_IDENT | PIXELSIZE | PERCENTAGE;
 
 scalar: SCALAR;
