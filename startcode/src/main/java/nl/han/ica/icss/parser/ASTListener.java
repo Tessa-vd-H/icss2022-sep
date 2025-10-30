@@ -70,10 +70,10 @@ public class ASTListener extends ICSSBaseListener {
 	@Override
 	public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
 		Declaration declaration = null;
-		if (ctx.COLOR_PROPERTIES() != null) {
-			declaration = new Declaration(ctx.COLOR_PROPERTIES().getText());
-		} else if (ctx.WIDTH_HEIGHT_PROPERTIES() != null) {
-			declaration = new Declaration(ctx.WIDTH_HEIGHT_PROPERTIES().getText());
+		if (ctx.PROPERTIES() != null) {
+			declaration = new Declaration(ctx.PROPERTIES().getText());
+		} else if (ctx.PROPERTIES() != null) {
+			declaration = new Declaration(ctx.PROPERTIES().getText());
 		}
 
 		currentContainer.peek().addChild(declaration);
@@ -82,26 +82,6 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-		currentContainer.pop();
-	}
-
-	@Override
-	public void enterPropColorValue(ICSSParser.PropColorValueContext ctx) {
-		ASTNode node = null;
-		if (ctx.COLOR() != null) {
-			node = new ColorLiteral(ctx.getText());
-		} else if (ctx.CAPITAL_IDENT() != null) {
-			node = new VariableReference(ctx.getText());
-		}
-
-		if (node != null) {
-			currentContainer.peek().addChild(node);
-			currentContainer.push(node);
-		}
-	}
-
-	@Override
-	public void exitPropColorValue(ICSSParser.PropColorValueContext ctx) {
 		currentContainer.pop();
 	}
 
@@ -119,6 +99,10 @@ public class ASTListener extends ICSSBaseListener {
 			VariableReference vr = new VariableReference(ctx.getText());
 			currentContainer.peek().addChild(vr);
 			currentContainer.push(vr);
+		} else if (ctx.COLOR() != null) {
+			Literal literal = new ColorLiteral(ctx.getText());
+			currentContainer.peek().addChild(literal);
+			currentContainer.push(literal);
 		} else if (ctx.calc() != null) {
 			currentContainer.peek().addChild(currentContainer.peek());
 			currentContainer.push(currentContainer.peek());
@@ -253,6 +237,8 @@ public class ASTListener extends ICSSBaseListener {
 				exp = new PercentageLiteral(ctx.getChild(0).getText());
 			} else if (ctx.CAPITAL_IDENT() != null) {
 				exp = new VariableReference(ctx.getChild(0).getText());
+			} else if (ctx.SCALAR() != null) {
+				exp = new ScalarLiteral(ctx.getChild(0).getText());
 			}
 
 			if (exp != null) {
@@ -264,18 +250,6 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void exitCalc(ICSSParser.CalcContext ctx) {
-		currentContainer.pop();
-	}
-
-	@Override
-	public void enterScalar(ICSSParser.ScalarContext ctx) {
-		ScalarLiteral scalarLiteral = new ScalarLiteral(ctx.getText());
-		currentContainer.peek().addChild(scalarLiteral);
-		currentContainer.push(scalarLiteral);
-	}
-
-	@Override
-	public void exitScalar(ICSSParser.ScalarContext ctx) {
 		currentContainer.pop();
 	}
 }
