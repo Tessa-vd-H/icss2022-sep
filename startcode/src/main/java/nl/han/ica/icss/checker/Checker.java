@@ -4,166 +4,140 @@ import nl.han.ica.datastructures.HANLinkedList;
 import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
-import nl.han.ica.icss.ast.operations.MultiplyOperation;
+import nl.han.ica.icss.ast.operations.*;
 import nl.han.ica.icss.ast.types.ExpressionType;
 
 import java.util.HashMap;
 
 public class Checker {
 
-    private IHANLinkedList<HashMap<String, ExpressionType>> scopes;
-    private int currentScope = 0;
+    private IHANLinkedList<HashMap<String, ExpressionType>> variableTypes;
+    private int scope = 0;
 
     public void check(AST ast) {
-        scopes = new HANLinkedList<>();
-        scopes.insert(currentScope, new HashMap<String, ExpressionType>());
-        analyzeNode(ast.root);
+        variableTypes = new HANLinkedList<>();
+        variableTypes.insert(scope, new HashMap<>());
+        walkTree(ast.root);
     }
 
-    private void analyzeNode(ASTNode node) {
+    private void walkTree(ASTNode node) {
         if (node instanceof VariableAssignment) {
-            handleVariableAssignment(currentScope, (VariableAssignment) node);
-            processChildren(node);
-            printScope(currentScope);
-
+            checkVariableAssignment(scope, (VariableAssignment) node);
+            childWalkTree(node);
+            printVariables(scope);
         } else if (node instanceof IfClause) {
-            enterScope();
-            validateIfClause((IfClause) node);
-            processChildren(node);
-            exitScope();
-
+            createNewScope();
+            checkIfStatement((IfClause) node);
+            childWalkTree(node);
+            deleteScope();
         } else if (node instanceof Stylerule) {
-            enterScope();
-            processChildren(node);
-            exitScope();
-
+            createNewScope();
+            childWalkTree(node);
+            deleteScope();
         } else if (node instanceof Declaration) {
-            validateDeclaration((Declaration) node);
-            processChildren(node);
-
+            checkDeclaration((Declaration) node);
+            childWalkTree(node);
         } else if (node instanceof Operation) {
-            validateOperation((Operation) node);
-            processChildren(node);
-
+            checkOperation((Operation) node);
+            childWalkTree(node);
         } else {
-            processChildren(node);
+            childWalkTree(node);
         }
     }
 
-    private void processChildren(ASTNode node) {
+    private void childWalkTree(ASTNode node) {
         for (ASTNode child : node.getChildren()) {
-            analyzeNode(child);
+            walkTree(child);
         }
     }
 
-    private void handleVariableAssignment(int scopeDepth, VariableAssignment assignment) {
-        String name = assignment.name.name;
-        ExpressionType type = evaluateType(assignment.expression);
-
-        if (type == ExpressionType.UNDEFINED) {
-            assignment.setError("Variable '" + name + "' has an undefined type.");
-        }
-
-        HashMap<String, ExpressionType> currentVars = scopes.get(scopeDepth);
-        currentVars.put(name, type);
-    }
-
-    private void validateIfClause(IfClause node) {
-        ExpressionType conditionType = evaluateType(node.conditionalExpression);
-        if (conditionType == ExpressionType.UNDEFINED) {
-            node.setError("If-statement condition is undefined.");
-        }
-        if (conditionType != ExpressionType.BOOL) {
-            node.setError("If-statement condition must be boolean.");
-        }
-    }
-
-    private void validateDeclaration(Declaration node) {
-        ExpressionType type = evaluateType(node.expression);
+    private void checkDeclaration(Declaration node) {
+        ExpressionType valueType = getType(node.expression);
         String property = node.property.name.toLowerCase();
 
-        System.out.println("Property: " + property + " ValueType: " + type);
-
-        if (type == ExpressionType.UNDEFINED) {
-            node.setError("Value of property '" + property + "' is undefined.");
+        if (valueType == ExpressionType.UNDEFINED) {
+            node.setError("Value of property " + property + " is undefined");
         }
 
         if (property.equals("color") || property.equals("background-color")) {
-            if (type != ExpressionType.COLOR) {
-                node.setError("Property '" + property + "' must be a color.");
+            if (valueType != ExpressionType.COLOR) {
+                node.setError("Value of property " + property + " should be of type color");
             }
         } else if (property.equals("width") || property.equals("height")) {
-            if (type != ExpressionType.PIXEL && type != ExpressionType.PERCENTAGE) {
-                node.setError("Property '" + property + "' must be pixel or percentage, not " + type);
+            if (valueType != ExpressionType.PIXEL && valueType != ExpressionType.PERCENTAGE) {
+                node.setError("Value of property " + property + " should be pixel or percentage");
             }
         }
     }
 
-    private void validateOperation(Operation op) {
-        ExpressionType leftType = evaluateType(op.lhs);
-        ExpressionType rightType = evaluateType(op.rhs);
+    private void checkOperation(Operation node) {
+        ExpressionType left = getType(node.lhs);
+        ExpressionType right = getType(node.rhs);
 
-        if (leftType == ExpressionType.UNDEFINED) {
-            op.setError("Left-hand side is undefined.");
-        }
-        if (rightType == ExpressionType.UNDEFINED) {
-            op.setError("Right-hand side is undefined.");
-        }
-        if (leftType == ExpressionType.COLOR || rightType == ExpressionType.COLOR) {
-            op.setError("Cannot use color in operation.");
-        }
-        if (leftType == ExpressionType.BOOL || rightType == ExpressionType.BOOL) {
-            op.setError("Cannot use boolean in operation.");
-        }
+        if (left == ExpressionType.UNDEFINED) node.setError("Left-hand side of operation is undefined");
+        if (right == ExpressionType.UNDEFINED) node.setError("Right-hand side of operation is undefined");
 
-        if (op instanceof MultiplyOperation) {
-            if (leftType != ExpressionType.SCALAR && rightType != ExpressionType.SCALAR) {
-                op.setError("Multiplication requires at least one scalar operand.");
-            }
+        if (left == ExpressionType.COLOR || right == ExpressionType.COLOR)
+            node.setError("Cannot perform operation with color");
+        if (left == ExpressionType.BOOL || right == ExpressionType.BOOL)
+            node.setError("Cannot perform operation with boolean");
+
+        if (node instanceof MultiplyOperation) {
+            if (left != ExpressionType.SCALAR && right != ExpressionType.SCALAR)
+                node.setError("At least one operand of multiplication should be scalar");
         } else {
-            if (leftType == ExpressionType.SCALAR || rightType == ExpressionType.SCALAR) {
-                op.setError("Cannot use scalar with plus or minus operations.");
-            }
-            if (leftType != rightType) {
-                op.setError("Operands are not of the same type.");
-            }
+            if (left == ExpressionType.SCALAR || right == ExpressionType.SCALAR)
+                node.setError("Cannot perform addition/subtraction with scalar");
+            if (left != right)
+                node.setError("Operands of operation are not of the same type");
         }
     }
 
-    private ExpressionType evaluateType(Expression expr) {
-        if (expr instanceof PixelLiteral) return ExpressionType.PIXEL;
-        if (expr instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
-        if (expr instanceof ColorLiteral) return ExpressionType.COLOR;
-        if (expr instanceof ScalarLiteral) return ExpressionType.SCALAR;
-        if (expr instanceof BoolLiteral) return ExpressionType.BOOL;
+    private void checkVariableAssignment(int depth, VariableAssignment assignment) {
+        String name = assignment.name.name;
+        ExpressionType type = getType(assignment.expression);
 
-        if (expr instanceof VariableReference) {
-            String name = ((VariableReference) expr).name;
-            ExpressionType type = lookupVariableType(name);
-            if (type == ExpressionType.UNDEFINED) {
-                expr.setError("Variable '" + name + "' is not defined in this scope.");
-            }
-            return type;
+        if (type == ExpressionType.UNDEFINED) {
+            assignment.setError("Variable " + name + " has undefined type");
         }
 
-        if (expr instanceof Operation) {
-            ExpressionType type = getOperationResultType((Operation) expr);
-            if (type == ExpressionType.UNDEFINED) {
-                expr.setError("Operation result is undefined.");
+        ExpressionType existing = getVariableType(name);
+        if (existing != ExpressionType.UNDEFINED) {
+            if (existing != type) {
+                assignment.setError("Variable " + name + " is already defined with different type");
             }
-            return type;
+            variableTypes.get(depth).put(name, type);
+        } else {
+            variableTypes.get(depth).put(name, type);
         }
+    }
+
+    private void checkIfStatement(IfClause node) {
+        ExpressionType conditionType = getType(node.conditionalExpression);
+
+        if (conditionType == ExpressionType.UNDEFINED)
+            node.setError("Condition in if-statement is undefined");
+        if (conditionType != ExpressionType.BOOL)
+            node.setError("If statement condition is not boolean");
+    }
+
+    private ExpressionType getType(Expression expression) {
+        if (expression instanceof PixelLiteral) return ExpressionType.PIXEL;
+        if (expression instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
+        if (expression instanceof ColorLiteral) return ExpressionType.COLOR;
+        if (expression instanceof ScalarLiteral) return ExpressionType.SCALAR;
+        if (expression instanceof BoolLiteral) return ExpressionType.BOOL;
+        if (expression instanceof VariableReference) return getVariableType(((VariableReference) expression).name);
+        if (expression instanceof Operation) return getOperationType((Operation) expression);
 
         return ExpressionType.UNDEFINED;
     }
 
-    private ExpressionType getOperationResultType(Operation op) {
-        ExpressionType left = evaluateType(op.lhs);
-        ExpressionType right = evaluateType(op.rhs);
+    private ExpressionType getOperationType(Operation op) {
+        ExpressionType left = getType(op.lhs);
+        ExpressionType right = getType(op.rhs);
 
-        if (left == ExpressionType.UNDEFINED || right == ExpressionType.UNDEFINED) {
-            return ExpressionType.UNDEFINED;
-        }
+        if (left == ExpressionType.UNDEFINED || right == ExpressionType.UNDEFINED) return ExpressionType.UNDEFINED;
         if (left == ExpressionType.SCALAR && right == ExpressionType.SCALAR) return ExpressionType.SCALAR;
         if (left == ExpressionType.SCALAR) return right;
         if (right == ExpressionType.SCALAR) return left;
@@ -172,25 +146,24 @@ public class Checker {
         return ExpressionType.UNDEFINED;
     }
 
-    private ExpressionType lookupVariableType(String name) {
-        for (int i = currentScope; i >= 0; i--) {
-            HashMap<String, ExpressionType> vars = scopes.get(i);
-            if (vars.containsKey(name)) return vars.get(name);
+    private ExpressionType getVariableType(String name) {
+        for (int i = scope; i >= 0; i--) {
+            if (variableTypes.get(i).containsKey(name)) return variableTypes.get(i).get(name);
         }
         return ExpressionType.UNDEFINED;
     }
 
-    private void enterScope() {
-        currentScope++;
-        scopes.insert(currentScope, new HashMap<String, ExpressionType>());
+    private void createNewScope() {
+        scope++;
+        variableTypes.insert(scope, new HashMap<>());
     }
 
-    private void exitScope() {
-        scopes.delete(currentScope);
-        currentScope--;
+    private void deleteScope() {
+        variableTypes.delete(scope);
+        scope--;
     }
 
-    private void printScope(int scope) {
-        System.out.println("Scope " + scope + ": " + scopes.get(scope).toString());
+    private void printVariables(int scope) {
+        System.out.println("Scope " + scope + ": " + variableTypes.get(scope));
     }
 }

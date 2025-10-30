@@ -3,6 +3,9 @@ grammar ICSS;
 //--- LEXER: ---
 PROPERTIES: 'color' | 'background-color' | 'width' | 'height';
 
+LINE_COMMENT: '//' ~[\r\n]* -> skip;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip;
+
 // IF/ELSE support:
 IF: 'if';
 ELSE: 'else';
@@ -42,7 +45,7 @@ ASSIGNMENT_OPERATOR: ':=';
 
 // --- PARSER: ---
 // A stylesheet consists of one or more style rules or variable assignments
-stylesheet: (styleRule | varAssign)* EOF;
+stylesheet: varAssign* styleRule* EOF;
 
 // === Style rules ===
 // A style rule contains a selector and one or more rule statements inside braces
@@ -57,7 +60,7 @@ selector: ID_IDENT | CLASS_IDENT | LOWER_IDENT;
 // === Declarations ===
 // Declaration: defines a property followed by a value
 declaration: PROPERTIES COLON propValue SEMICOLON;
-propValue: CAPITAL_IDENT | PIXELSIZE | PERCENTAGE | COLOR | calc;
+propValue: CAPITAL_IDENT | (MIN)?PIXELSIZE | (MIN)?PERCENTAGE | COLOR | calc;
 
 // === Variabeles ===
 // Variables can store different types of values:
@@ -67,7 +70,7 @@ propValue: CAPITAL_IDENT | PIXELSIZE | PERCENTAGE | COLOR | calc;
 
 varAssign: CAPITAL_IDENT ASSIGNMENT_OPERATOR varValue SEMICOLON;
 
-varValue: CAPITAL_IDENT | COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE | calc;
+varValue: CAPITAL_IDENT | COLOR | (MIN)?PIXELSIZE | (MIN)?PERCENTAGE | (MIN)?SCALAR | TRUE | FALSE | calc;
 
 // === If/Else statements ===
 // Conditional blocks can only use boolean values or boolean variables
@@ -80,7 +83,4 @@ expression: CAPITAL_IDENT | TRUE | FALSE;
 
 // === Calculations ===
 // Calculations allow arithmetic with pixel or percentage values
-calc: calc MUL calc | calc (PLUS|MIN) calc | CAPITAL_IDENT | PERCENTAGE | PIXELSIZE | SCALAR;
-
-// calc MUL scalar | scalar MUL calc | scalar MUL scalar | calc (PLUS | MIN) calc | CAPITAL_IDENT | PIXELSIZE | PERCENTAGE;
-// scalar: SCALAR | CAPITAL_IDENT;
+calc: calc MUL calc | calc (PLUS|MIN) calc | CAPITAL_IDENT | (MIN)?PERCENTAGE | (MIN)?PIXELSIZE | (MIN)?SCALAR;
