@@ -7,16 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class HANLinkedListTest {
+
     @Test
     void testAddAndGetFirst() {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
+        // First element added should be retrievable as first
         assertEquals("first", list.getFirst());
     }
 
     @Test
     void testAddAndGetFirst_NoHeader() {
         var list = new HANLinkedList<String>();
+        // Empty list should return null for getFirst
         assertNull(list.getFirst());
     }
 
@@ -25,9 +28,8 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.addFirst("second");
-
+        // Newest added element becomes first
         assertEquals("second", list.getFirst());
-        assertEquals("first", list.getFirst());
     }
 
     @Test
@@ -37,8 +39,7 @@ public class HANLinkedListTest {
         list.insert(3, "second");
 
         list.clear();
-
-        assertNull(list.getFirst());
+        // After clear, list should be empty
         assertNull(list.getFirst());
     }
 
@@ -47,19 +48,19 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.insert(1, "second");
-
+        // Insert at end works
         assertEquals("second", list.get(1));
     }
 
     @Test
     void testInsert_inBetween() {
-      var list = new HANLinkedList<String>();
-      list.addFirst("first");
-      list.insert(1, "second");
-      list.insert(1, "second again");
-
-      assertEquals("second again", list.get(1));
-      assertEquals("second", list.get(2));
+        var list = new HANLinkedList<String>();
+        list.addFirst("first");
+        list.insert(1, "second");
+        list.insert(1, "second again");
+        // Insertion in between shifts elements
+        assertEquals("second again", list.get(1));
+        assertEquals("second", list.get(2));
     }
 
     @Test
@@ -67,7 +68,7 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.insert(3, "second");
-
+        // Skipping index inserts at end
         assertEquals("second", list.get(1));
     }
 
@@ -76,7 +77,7 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.insert(0, "second");
-
+        // Insertion at index 0 updates header
         assertEquals("second", list.getFirst());
     }
 
@@ -87,7 +88,7 @@ public class HANLinkedListTest {
         list.insert(1, "second");
 
         list.delete(0);
-
+        // Deleting first element updates header
         assertEquals("second", list.get(0));
     }
 
@@ -98,7 +99,7 @@ public class HANLinkedListTest {
         list.insert(1, "second");
 
         list.delete(0);
-
+        // Deleting first element works
         assertEquals("second", list.get(0));
     }
 
@@ -108,7 +109,8 @@ public class HANLinkedListTest {
         list.addFirst("first");
         list.insert(1, "second");
 
-        list.delete(4); // negatieve getallen verwijderen het eerste element
+        list.delete(4);
+        // Out-of-bounds deletion does not break list
         assertEquals("second", list.get(1));
     }
 
@@ -116,7 +118,7 @@ public class HANLinkedListTest {
     void testGet() {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
-
+        // Get returns correct element
         assertEquals("first", list.get(0));
     }
 
@@ -124,7 +126,7 @@ public class HANLinkedListTest {
     void testGet_outOfBounds() {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
-
+        // Get out of bounds returns null
         assertNull(list.get(4));
     }
 
@@ -135,7 +137,7 @@ public class HANLinkedListTest {
         list.insert(1, "second");
 
         list.removeFirst();
-
+        // Removing first shifts header
         assertEquals("second", list.getFirst());
     }
 
@@ -144,7 +146,7 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.removeFirst();
-
+        // Removing only element leaves list empty
         assertNull(list.getFirst());
     }
 
@@ -152,13 +154,14 @@ public class HANLinkedListTest {
     void testGetFirst() {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
-
+        // getFirst returns header value
         assertEquals("first", list.getFirst());
     }
 
     @Test
     void testGetFirst_noHeader() {
         var list = new HANLinkedList<String>();
+        // Empty list returns null
         assertNull(list.getFirst());
     }
 
@@ -167,7 +170,7 @@ public class HANLinkedListTest {
         var list = new HANLinkedList<String>();
         list.addFirst("first");
         list.insert(1, "second");
-
+        // getSize returns number of elements
         assertEquals(2, list.getSize());
     }
 }
